@@ -107,7 +107,9 @@ export function drawCells(
     renderStateProvider: RenderStateProvider,
     getCellRenderer: GetCellRendererCallback,
     overrideCursor: (cursor: React.CSSProperties["cursor"]) => void,
-    minimumCellWidth: number
+    minimumCellWidth: number,
+    stickyRows?: number[],
+    stickyRegionHeight?: number
 ): Rectangle[] | undefined {
     let toDraw = damage?.size ?? Number.MAX_SAFE_INTEGER;
     const frameTime = performance.now();
@@ -369,7 +371,7 @@ export function drawCells(
                             // because technically the bottom right corner of the outline are on other cells.
                             ctx.fillRect(
                                 cellX + 1,
-                                drawY + 1,
+                                drawY + 1 + (stickyRegionHeight ?? 0),
                                 cellWidth - (isLastColumn ? 2 : 1),
                                 rh - (isLastRow ? 2 : 1)
                             );
@@ -445,7 +447,9 @@ export function drawCells(
                     }
 
                     return toDraw <= 0;
-                }
+                },
+                stickyRows,
+                totalHeaderHeight
             );
 
             ctx.restore();

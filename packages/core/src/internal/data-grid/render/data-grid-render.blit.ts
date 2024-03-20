@@ -37,7 +37,8 @@ export function blitLastFrame(
     mappedColumns: readonly MappedGridColumn[],
     effectiveCols: readonly MappedGridColumn[],
     getRowHeight: number | ((r: number) => number),
-    doubleBuffer: boolean
+    doubleBuffer: boolean,
+    stickyTopHeight: number
 ): {
     regions: Rectangle[];
 } {
@@ -80,6 +81,8 @@ export function blitLastFrame(
 
     const freezeTrailingRowsHeight =
         freezeTrailingRows > 0 ? getFreezeTrailingHeight(rows, freezeTrailingRows, getRowHeight) : 0;
+
+    totalHeaderHeight += stickyTopHeight;
 
     const blitWidth = width - stickyWidth - Math.abs(deltaX);
     const blitHeight = height - totalHeaderHeight - freezeTrailingRowsHeight - Math.abs(deltaY) - 1;
@@ -200,7 +203,8 @@ export function blitResizedCol(
     height: number,
     totalHeaderHeight: number,
     effectiveCols: readonly MappedGridColumn[],
-    resizedIndex: number
+    resizedIndex: number,
+    stickyTopHeight: number
 ) {
     const drawRegions: Rectangle[] = [];
 
@@ -214,6 +218,8 @@ export function blitResizedCol(
     ) {
         return drawRegions;
     }
+
+    totalHeaderHeight += stickyTopHeight;
 
     walkColumns(effectiveCols, cellYOffset, translateX, translateY, totalHeaderHeight, (c, drawX, _drawY, clipX) => {
         if (c.sourceIndex === resizedIndex) {

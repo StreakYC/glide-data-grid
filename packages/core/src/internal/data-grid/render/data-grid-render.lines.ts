@@ -29,7 +29,8 @@ export function drawBlanks(
     hasAppendRow: boolean,
     drawRegions: readonly Rectangle[],
     damage: CellSet | undefined,
-    theme: FullTheme
+    theme: FullTheme,
+    stickyRows?: number[]
 ): void {
     if (
         damage !== undefined ||
@@ -96,7 +97,8 @@ export function drawBlanks(
                         ctx.fillStyle = blankTheme.accentLight;
                         ctx.fillRect(drawX, drawY, 10_000, rh);
                     }
-                }
+                },
+                stickyRows
             );
 
             ctx.restore();
@@ -144,6 +146,15 @@ export function overdrawStickyBoundaries(
         ctx.strokeStyle = hStroke;
         ctx.stroke();
     }
+
+    // stikcy rows
+    // const hStroke = vColor === hColor && vStroke !== undefined ? vStroke : blendCache(hColor, theme.bgCell);
+    // const h = getRowHeight(0);
+    // ctx.beginPath();
+    // ctx.moveTo(0, h + 0.5);
+    // ctx.lineTo(width, h + 0.5);
+    // ctx.strokeStyle = hStroke;
+    // ctx.stroke();
 }
 
 const getMinMaxXY = (drawRegions: Rectangle[] | undefined, width: number, height: number) => {
@@ -294,7 +305,8 @@ export function drawGridLines(
     freezeTrailingRows: number,
     rows: number,
     theme: FullTheme,
-    verticalOnly: boolean = false
+    verticalOnly: boolean = false,
+    stickyTopHeight: number = 0
 ) {
     if (spans !== undefined) {
         ctx.beginPath();
@@ -308,7 +320,7 @@ export function drawGridLines(
     const hColor = theme.horizontalBorderColor ?? theme.borderColor;
     const vColor = theme.borderColor;
 
-    const { minX, maxX, minY, maxY } = getMinMaxXY(drawRegions, width, height);
+    const { minX, maxX, maxY, minY } = getMinMaxXY(drawRegions, width, height);
 
     const toDraw: { x1: number; y1: number; x2: number; y2: number; color: string }[] = [];
 
@@ -346,7 +358,7 @@ export function drawGridLines(
         const target = freezeY;
         while (y + translateY < target) {
             const ty = y + translateY;
-            if (ty >= minY && ty <= maxY - 1) {
+            if (ty >= minY && ty <= maxY - 1 && ty >= totalHeaderHeight + stickyTopHeight) {
                 const rowTheme = getRowThemeOverride?.(row);
                 toDraw.push({
                     x1: minX,

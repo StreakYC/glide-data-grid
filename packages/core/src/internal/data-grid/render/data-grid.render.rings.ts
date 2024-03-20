@@ -24,7 +24,8 @@ export function drawHighlightRings(
     freezeTrailingRows: number,
     rows: number,
     allHighlightRegions: readonly Highlight[] | undefined,
-    theme: FullTheme
+    theme: FullTheme,
+    stickyRegionHeight: number
 ): (() => void) | undefined {
     const highlightRegions = allHighlightRegions?.filter(x => x.style !== "no-outline");
 
@@ -33,7 +34,7 @@ export function drawHighlightRings(
     const freezeLeft = getStickyWidth(mappedColumns);
     const freezeBottom = getFreezeTrailingHeight(rows, freezeTrailingRows, rowHeight);
     const splitIndicies = [freezeColumns, 0, mappedColumns.length, rows - freezeTrailingRows] as const;
-    const splitLocations = [freezeLeft, 0, width, height - freezeBottom] as const;
+    const splitLocations = [freezeLeft, headerHeight + stickyRegionHeight, width, height - freezeBottom] as const;
 
     const drawRects = highlightRegions.map(h => {
         const r = h.range;
