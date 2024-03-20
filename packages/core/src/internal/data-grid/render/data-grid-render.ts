@@ -12,6 +12,7 @@ import { drawGridHeaders } from "./data-grid-render.header.js";
 import { drawGridLines, overdrawStickyBoundaries, drawBlanks, drawExtraRowThemes } from "./data-grid-render.lines.js";
 import { blitLastFrame, blitResizedCol, computeCanBlit } from "./data-grid-render.blit.js";
 import { drawHighlightRings, drawFillHandle, drawColumnResizeOutline } from "./data-grid.render.rings.js";
+import { findLastIndex } from "lodash";
 
 // Future optimization opportunities
 // - Create a cache of a buffer used to render the full view of a partially displayed column so that when
@@ -255,6 +256,34 @@ export function drawGrid(arg: DrawGridArg, lastArg: DrawGridArg | undefined) {
 
     const effectiveCols = getEffectiveColumns(mappedColumns, cellXOffset, width, dragAndDropState, translateX);
 
+    const stickyRows = [0, 10, 30];
+
+    let stickyRegionHeight = 0;
+    const startRow = cellYOffset;
+    const drawY = totalHeaderHeight + translateY;
+    // find the sticky row that fits
+    const stickyRowIndex = findLastIndex(stickyRows, r => startRow >= r);
+    if (stickyRowIndex !== -1) {
+        const stickyRow = stickyRows[stickyRowIndex];
+        const stickyRowHeight = getRowHeight(stickyRow);
+        const stickyRowBottom = stickyRowHeight;
+
+        const nextStickyRow = stickyRows[stickyRowIndex + 1];
+        if (nextStickyRow === undefined) {
+            stickyRegionHeight = stickyRowHeight;
+        } else {
+            const startRowHeight = getRowHeight(startRow);
+            const startRowVisibleHeight = startRowHeight + (drawY - (totalHeaderHeight ?? 0));
+
+            let nextStickyRowTop = startRowVisibleHeight;
+            for (let i = startRow + 1; i < nextStickyRow; i++) {
+                nextStickyRowTop += getRowHeight(i);
+            }
+
+            stickyRegionHeight = nextStickyRowTop < stickyRowBottom ? nextStickyRowTop : stickyRowHeight;
+        }
+    }
+
     let drawRegions: Rectangle[] = [];
 
     const mustDrawFocusOnHeader = drawFocus && selection.current?.cell[1] === cellYOffset && translateY === 0;
@@ -337,7 +366,8 @@ export function drawGrid(arg: DrawGridArg, lastArg: DrawGridArg | undefined) {
                 freezeTrailingRows,
                 rows,
                 highlightRegions,
-                theme
+                theme,
+                stickyRegionHeight
             );
         }
 
@@ -437,7 +467,9 @@ export function drawGrid(arg: DrawGridArg, lastArg: DrawGridArg | undefined) {
                 renderStateProvider,
                 getCellRenderer,
                 overrideCursor,
-                minimumCellWidth
+                minimumCellWidth,
+                stickyRows,
+                stickyRegionHeight
             );
 
             const selectionCurrent = selection.current;
@@ -534,7 +566,8 @@ export function drawGrid(arg: DrawGridArg, lastArg: DrawGridArg | undefined) {
             mappedColumns,
             effectiveCols,
             rowHeight,
-            doubleBuffer
+            doubleBuffer,
+            stickyRegionHeight
         );
         drawRegions = regions;
     } else if (canBlit !== false) {
@@ -550,9 +583,23 @@ export function drawGrid(arg: DrawGridArg, lastArg: DrawGridArg | undefined) {
             height,
             totalHeaderHeight,
             effectiveCols,
-            resizedCol
+            resizedCol,
+            stickyRegionHeight
         );
     }
+
+    if (drawRegions.length > 0) {
+        drawRegions.push({ x: 0, y: totalHeaderHeight * dpr, width: width * dpr, height: 55 * dpr });
+    }
+
+    drawRegions = [
+        {
+            x: 0,
+            y: 0,
+            width: width,
+            height: height,
+        },
+    ];
 
     overdrawStickyBoundaries(
         targetCtx,
@@ -582,7 +629,8 @@ export function drawGrid(arg: DrawGridArg, lastArg: DrawGridArg | undefined) {
         freezeTrailingRows,
         rows,
         highlightRegions,
-        theme
+        theme,
+        stickyRegionHeight
     );
 
     // the overdraw may have nuked out our focus ring right edge.
@@ -656,7 +704,9 @@ export function drawGrid(arg: DrawGridArg, lastArg: DrawGridArg | undefined) {
         renderStateProvider,
         getCellRenderer,
         overrideCursor,
-        minimumCellWidth
+        minimumCellWidth,
+        stickyRows,
+        stickyRegionHeight
     );
 
     drawBlanks(
@@ -678,7 +728,8 @@ export function drawGrid(arg: DrawGridArg, lastArg: DrawGridArg | undefined) {
         hasAppendRow,
         drawRegions,
         damage,
-        theme
+        theme,
+        stickyRows
     );
 
     drawExtraRowThemes(
@@ -716,7 +767,9 @@ export function drawGrid(arg: DrawGridArg, lastArg: DrawGridArg | undefined) {
         verticalBorder,
         freezeTrailingRows,
         rows,
-        theme
+        theme,
+        false,
+        stickyRegionHeight
     );
 
     highlightRedraw?.();

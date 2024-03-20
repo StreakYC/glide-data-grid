@@ -1,3 +1,4 @@
+import { findLastIndex } from "lodash";
 import { type Item, type Rectangle } from "../data-grid-types.js";
 import { type MappedGridColumn, isGroupEqual } from "./data-grid-lib.js";
 
@@ -26,7 +27,9 @@ export function walkRowsInCol(
     freezeTrailingRows: number,
     hasAppendRow: boolean,
     skipToY: number | undefined,
-    cb: WalkRowsCallback
+    cb: WalkRowsCallback,
+    stickyRows?: number[],
+    totalHeaderHeight?: number
 ): void {
     skipToY = skipToY ?? drawY;
     let y = drawY;
@@ -51,6 +54,56 @@ export function walkRowsInCol(
         const rh = getRowHeight(row);
         y -= rh;
         cb(y, row, rh, true, hasAppendRow && row === rows - 1);
+    }
+
+    y = 0; // with start row it is possible to identify the sticky rows
+    if (stickyRows) {
+        // find the sticky row that fits
+        const stickyRowIndex = findLastIndex(stickyRows, r => startRow >= r);
+        if (stickyRowIndex !== -1) {
+            const stickyRow = stickyRows[stickyRowIndex];
+            const stickyRowHeight = getRowHeight(stickyRow);
+            const stickyRowBottom = stickyRowHeight;
+
+            const nextStickyRow = stickyRows[stickyRowIndex + 1];
+            if (nextStickyRow === undefined) {
+                cb(totalHeaderHeight ?? drawY, stickyRow, stickyRowHeight, true, false);
+            } else {
+                const nextStickyRowHeight = getRowHeight(nextStickyRow);
+
+                const startRowHeight = getRowHeight(startRow);
+                const startRowVisibleHeight = startRowHeight + (drawY - (totalHeaderHeight ?? 0));
+
+                let nextStickyRowTop = startRowVisibleHeight;
+                for (let i = startRow + 1; i < nextStickyRow; i++) {
+                    nextStickyRowTop += getRowHeight(i);
+                }
+
+                if (nextStickyRowTop < stickyRowBottom) {
+                    let offsetY = totalHeaderHeight ?? drawY;
+                    offsetY -= stickyRowBottom - nextStickyRowTop;
+                    cb(offsetY, stickyRow, stickyRowHeight, true, false);
+                    // offsetY += stickyRowHeight;
+                    // cb(offsetY, nextStickyRow, nextStickyRowHeight, true, false);
+                } else {
+                    cb(totalHeaderHeight ?? drawY, stickyRow, stickyRowHeight, true, false);
+                }
+
+                // console.log("stickyRows", {
+                //     startRowHeight,
+                //     startRowVisibleHeight,
+                //     stickyRowHeight,
+                //     stickyRowBottom,
+                //     nextStickyRow,
+                //     nextStickyRowHeight,
+                //     nextStickyRowTop,
+                //     drawYx: drawY - (totalHeaderHeight ?? 0),
+                //     drawY,
+                //     startRow,
+                //     totalHeaderHeight,
+                // });
+            }
+        }
     }
 }
 

@@ -137,6 +137,7 @@ export const RowGrouping: React.VFC<any> = (p: { freezeColumns: number }) => {
             columns={cols}
             // verticalBorder={false}
             rows={rows}
+            smoothScrollY={true}
         />
     );
 };
